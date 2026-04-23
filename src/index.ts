@@ -94,7 +94,9 @@ export default {
 
 				const workshopLlm = createWorkshopLlm(env.DEV_SHOWDOWN_API_KEY, interactionId);
 
-				const toolCallResult = await generateText({
+				let capturedWeatherData: any = null;
+
+				await generateText({
 					model: workshopLlm.chatModel('deli-4'),
 					system: 'Call the getWeather tool with the city mentioned in the question.',
 					prompt: payload.question,
@@ -111,20 +113,19 @@ export default {
 									},
 									body: JSON.stringify({ city }),
 								});
-								return res.json();
+								capturedWeatherData = await res.json();
+								return capturedWeatherData;
 							},
 						}),
 					},
 					toolChoice: 'required',
-					maxSteps: 1,
+					maxSteps: 2,
 				});
-
-				const weatherData = toolCallResult.toolResults?.[0]?.result as any;
 
 				const answerResult = await generateText({
 					model: workshopLlm.chatModel('deli-4'),
 					system: 'Answer the weather question in one natural sentence that includes the temperature.',
-					prompt: `Question: ${payload.question}\nWeather data: ${JSON.stringify(weatherData)}`,
+					prompt: `Question: ${payload.question}\nWeather data: ${JSON.stringify(capturedWeatherData)}`,
 				});
 
 				return Response.json({ answer: answerResult.text });
