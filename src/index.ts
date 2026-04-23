@@ -5,7 +5,7 @@ import { z } from 'zod';
 const INTERACTION_ID_HEADER = 'X-Interaction-Id';
 
 const productSchema = z.object({
-	name: z.string(),
+	name: z.string().describe("The complete product name exactly as it appears in the text, including the product type word (e.g. 'Aster Velocity J660 tennis racket', not 'Aster Velocity J660')."),
 	price: z.number(),
 	currency: z.string(),
 	inStock: z.boolean(),
