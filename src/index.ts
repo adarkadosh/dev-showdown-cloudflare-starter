@@ -1,8 +1,31 @@
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
-import { generateText } from 'ai';
-import { parseProductDescription } from './json-mode-extraction';
+import { generateObject, generateText } from 'ai';
+import { z } from 'zod';
 
 const INTERACTION_ID_HEADER = 'X-Interaction-Id';
+
+const productSchema = z.object({
+	name: z.string(),
+	price: z.number(),
+	currency: z.string(),
+	inStock: z.boolean(),
+	dimensions: z.object({
+		length: z.number(),
+		width: z.number(),
+		height: z.number(),
+		unit: z.string(),
+	}),
+	manufacturer: z.object({
+		name: z.string(),
+		country: z.string(),
+		website: z.string(),
+	}),
+	specifications: z.object({
+		weight: z.number(),
+		weightUnit: z.string(),
+		warrantyMonths: z.number().int(),
+	}),
+});
 
 export default {
 	async fetch(request: Request, env: Env): Promise<Response> {
@@ -65,24 +88,25 @@ export default {
 				});
 			}
 			case 'JSON_MODE': {
-				const description =
-					typeof payload?.description === 'string'
-						? payload.description
-						: '';
-				try {
-					const product = parseProductDescription(description);
-					return Response.json(product);
-				} catch (err) {
-					const message =
-						err instanceof Error ? err.message : 'Invalid description';
-					return Response.json({ error: message }, { status: 400 });
+				if (!env.DEV_SHOWDOWN_API_KEY) {
+					throw new Error('DEV_SHOWDOWN_API_KEY is required');
 				}
+
+				const workshopLlm = createWorkshopLlm(env.DEV_SHOWDOWN_API_KEY, interactionId);
+				const { object } = await generateObject({
+					model: workshopLlm.chatModel('deli-4'),
+					schema: productSchema,
+					system: 'Extract product information from the description. Return all numeric values as numbers, not strings.',
+					prompt: payload.description,
+				});
+
+				return Response.json(object);
 			}
 			default:
-				return new Response('Solver not found', { status: 404 });
-		}
+					return new Response('Solver not found', { status: 404 });
+			}
 	},
-} satisfies ExportedHandler<Env>;
+	} satisfies ExportedHandler<Env>;
 
 function createWorkshopLlm(apiKey: string, interactionId: string) {
 	return createOpenAICompatible({
