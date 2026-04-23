@@ -96,7 +96,7 @@ export default {
 				const { object } = await generateObject({
 					model: workshopLlm.chatModel('deli-4'),
 					schema: productSchema,
-					system: 'Extract product information from the description. Return all numeric values as numbers, not strings.',
+					system: 'Extract product information from the description. Return all numeric values as numbers, not strings. The product name must include the full name exactly as it appears in the text, including any product type or category word (e.g. "chair", "jacket", "table").',
 					prompt: payload.description,
 				});
 
