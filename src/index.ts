@@ -93,9 +93,10 @@ export default {
 				}
 
 				const workshopLlm = createWorkshopLlm(env.DEV_SHOWDOWN_API_KEY, interactionId);
-				const result = await generateText({
+
+				const toolCallResult = await generateText({
 					model: workshopLlm.chatModel('deli-4'),
-					system: 'You are a weather assistant. Use the getWeather tool to look up weather, then answer in one natural sentence including the temperature.',
+					system: 'Call the getWeather tool with the city mentioned in the question.',
 					prompt: payload.question,
 					tools: {
 						getWeather: tool({
@@ -114,10 +115,19 @@ export default {
 							},
 						}),
 					},
-					maxSteps: 3,
+					toolChoice: 'required',
+					maxSteps: 1,
 				});
 
-				return Response.json({ answer: result.text });
+				const weatherData = toolCallResult.toolResults?.[0]?.result as any;
+
+				const answerResult = await generateText({
+					model: workshopLlm.chatModel('deli-4'),
+					system: 'Answer the weather question in one natural sentence that includes the temperature.',
+					prompt: `Question: ${payload.question}\nWeather data: ${JSON.stringify(weatherData)}`,
+				});
+
+				return Response.json({ answer: answerResult.text });
 			}
 			case 'JSON_MODE': {
 				if (!env.DEV_SHOWDOWN_API_KEY) {
