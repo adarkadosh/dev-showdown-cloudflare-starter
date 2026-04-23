@@ -1,5 +1,6 @@
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { generateText } from 'ai';
+import { parseProductDescription } from './json-mode-extraction';
 
 const INTERACTION_ID_HEADER = 'X-Interaction-Id';
 
@@ -64,26 +65,24 @@ export default {
 				});
 			}
 			case 'JSON_MODE': {
-				if (!env.DEV_SHOWDOWN_API_KEY) {
-					throw new Error('DEV_SHOWDOWN_API_KEY is required');
+				const description =
+					typeof payload?.description === 'string'
+						? payload.description
+						: '';
+				try {
+					const product = parseProductDescription(description);
+					return Response.json(product);
+				} catch (err) {
+					const message =
+						err instanceof Error ? err.message : 'Invalid description';
+					return Response.json({ error: message }, { status: 400 });
 				}
-
-				const workshopLlm = createWorkshopLlm(env.DEV_SHOWDOWN_API_KEY, interactionId);
-				const result = await generateText({
-					model: workshopLlm.chatModel('deli-4'),
-					system: 'You are a trivia question player. Answer the question correctly and concisely.',
-					prompt: payload.question,
-				});
-
-				return Response.json({
-					answer: result.text || 'N/A',
-				});
 			}
-				default:
-					return new Response('Solver not found', { status: 404 });
-			}
+			default:
+				return new Response('Solver not found', { status: 404 });
+		}
 	},
-	} satisfies ExportedHandler<Env>;
+} satisfies ExportedHandler<Env>;
 
 function createWorkshopLlm(apiKey: string, interactionId: string) {
 	return createOpenAICompatible({
