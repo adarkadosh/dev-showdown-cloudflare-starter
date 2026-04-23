@@ -63,6 +63,22 @@ export default {
 					answer: result.text || 'N/A',
 				});
 			}
+			case 'JSON_MODE': {
+				if (!env.DEV_SHOWDOWN_API_KEY) {
+					throw new Error('DEV_SHOWDOWN_API_KEY is required');
+				}
+
+				const workshopLlm = createWorkshopLlm(env.DEV_SHOWDOWN_API_KEY, interactionId);
+				const result = await generateText({
+					model: workshopLlm.chatModel('deli-4'),
+					system: 'You are a trivia question player. Answer the question correctly and concisely.',
+					prompt: payload.question,
+				});
+
+				return Response.json({
+					answer: result.text || 'N/A',
+				});
+			}
 				default:
 					return new Response('Solver not found', { status: 404 });
 			}
